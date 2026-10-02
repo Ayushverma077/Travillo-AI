@@ -1,0 +1,9 @@
+{
+  "name": "Travillo",
+  "description": "Discover India. Plan intelligently. AI-powered India travel discovery and personalized trip planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
+

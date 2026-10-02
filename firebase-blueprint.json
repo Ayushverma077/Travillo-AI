@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "User saved trip itinerary and preferences",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "destination": { "type": "string", "maxLength": 150 },
+        "startingLocation": { "type": "string", "maxLength": 150 },
+        "duration": { "type": "number" },
+        "approximateDates": { "type": "string", "maxLength": 100 },
+        "budget": { "type": "string", "maxLength": 50 },
+        "currency": { "type": "string", "maxLength": 10 },
+        "travelers": { "type": "number" },
+        "interests": { "type": "array" },
+        "travelStyle": { "type": "string", "maxLength": 50 },
+        "transportPreference": { "type": "string", "maxLength": 100 },
+        "accommodationPreference": { "type": "string", "maxLength": 100 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "estimatedCost": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "destination", "duration"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "User favorited destination record",
+      "type": "object",
+      "properties": {
+        "destinationId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "destinationName": { "type": "string", "maxLength": 150 },
+        "destinationRegion": { "type": "string", "maxLength": 150 },
+        "destinationCountry": { "type": "string", "maxLength": 150 },
+        "heroImage": { "type": "string", "maxLength": 1024 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["destinationId", "userId", "destinationName"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Private user profile information"
+    },
+    "/users/{userId}/trips/{tripId}": {
+      "schema": "Trip",
+      "description": "User saved itineraries and trip details"
+    },
+    "/users/{userId}/favorites/{destinationId}": {
+      "schema": "Favorite",
+      "description": "User favorited destinations"
+    }
+  }
+}
