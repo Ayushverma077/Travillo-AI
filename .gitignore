@@ -6,5 +6,3 @@ coverage/
 *.log
 .env*
 !.env.example
-# Firebase generated config containing credentials
-firebase-applet-config.json

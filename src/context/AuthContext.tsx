@@ -5,6 +5,7 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   updateProfile
 } from 'firebase/auth';
@@ -17,20 +18,48 @@ export interface AuthErrorState {
   helpLink?: string;
 }
 
+export type PendingAction = 
+  | { type: 'save_trip'; payload: { itinerary: any; formData?: any } }
+  | { type: 'save_favorite'; payload: any }
+  | { type: 'navigate'; payload: 'home' | 'discover' | 'planner' | 'trips' | 'favorites' }
+  | { type: 'open_taste_profile' }
+  | { type: 'open_profile' };
+
+export interface AuthModalOptions {
+  title?: string;
+  subtitle?: string;
+  pendingAction?: PendingAction;
+}
+
+export interface ToastNotification {
+  id: string;
+  message: string;
+  type?: 'success' | 'info' | 'error';
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signInWithEmail: (email: string, pass: string) => Promise<void>;
-  signUpWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  signInWithGoogle: () => Promise<User | null>;
+  signInWithEmail: (email: string, pass: string) => Promise<User | null>;
+  signUpWithEmail: (email: string, pass: string, name: string) => Promise<User | null>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
-  openAuthModal: (mode?: 'signin' | 'signup') => void;
+  openAuthModal: (mode?: 'signin' | 'signup', options?: AuthModalOptions) => void;
   closeAuthModal: () => void;
   authModalOpen: boolean;
   authModalMode: 'signin' | 'signup';
   setAuthModalMode: (mode: 'signin' | 'signup') => void;
+  modalTitle?: string;
+  modalSubtitle?: string;
+  pendingAction: PendingAction | null;
+  setPendingAction: (action: PendingAction | null) => void;
+  clearPendingAction: () => void;
   authError: AuthErrorState | null;
   clearAuthError: () => void;
+  toast: ToastNotification | null;
+  showToast: (message: string, type?: 'success' | 'info' | 'error') => void;
+  dismissToast: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,7 +69,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
+  const [modalTitle, setModalTitle] = useState<string | undefined>(undefined);
+  const [modalSubtitle, setModalSubtitle] = useState<string | undefined>(undefined);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(() => {
+    try {
+      const stored = sessionStorage.getItem('travillo_pending_action');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [authError, setAuthError] = useState<AuthErrorState | null>(null);
+  const [toast, setToast] = useState<ToastNotification | null>(null);
+
+  // Sync pending action to sessionStorage
+  const handleSetPendingAction = (action: PendingAction | null) => {
+    setPendingAction(action);
+    try {
+      if (action) {
+        sessionStorage.setItem('travillo_pending_action', JSON.stringify(action));
+      } else {
+        sessionStorage.removeItem('travillo_pending_action');
+      }
+    } catch (e) {
+      console.warn('sessionStorage error', e);
+    }
+  };
+
+  const clearPendingAction = () => {
+    handleSetPendingAction(null);
+  };
+
+  const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToast({
+      id: `toast_${Date.now()}`,
+      message,
+      type
+    });
+  };
+
+  const dismissToast = () => {
+    setToast(null);
+  };
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => {
+      setToast(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     // Real Firebase Auth persistence listener
@@ -70,60 +149,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (rawMessage.includes('identity-toolkit-api-has-not-been-used') || rawMessage.includes('identitytoolkit.googleapis.com')) {
       return {
         code: 'identity-toolkit-api-disabled',
-        message: 'Firebase Authentication requires the Identity Toolkit API to be enabled on Google Cloud project 626484178360.',
-        helpLink: 'https://console.developers.google.com/apis/api/identitytoolkit.googleapis.com/overview?project=626484178360'
+        message: 'Firebase Authentication requires the Identity Toolkit API to be enabled on your Firebase project.',
+        helpLink: 'https://console.firebase.google.com/project/travillo-ai/authentication'
       };
     }
 
-    if (rawMessage.includes('email-already-in-use')) {
+    if (rawMessage.includes('email-already-in-use') || rawMessage.includes('auth/email-already-in-use')) {
       return {
         code: 'email-already-in-use',
         message: 'This email is already registered. Please sign in or use another email.'
       };
     }
 
-    if (rawMessage.includes('wrong-password') || rawMessage.includes('invalid-credential') || rawMessage.includes('user-not-found')) {
+    if (
+      rawMessage.includes('wrong-password') || 
+      rawMessage.includes('invalid-credential') || 
+      rawMessage.includes('user-not-found') ||
+      rawMessage.includes('auth/invalid-credential') ||
+      rawMessage.includes('auth/wrong-password') ||
+      rawMessage.includes('auth/user-not-found')
+    ) {
       return {
         code: 'invalid-credentials',
         message: 'Invalid email or password. Please verify your credentials and try again.'
       };
     }
 
-    if (rawMessage.includes('weak-password')) {
+    if (rawMessage.includes('weak-password') || rawMessage.includes('auth/weak-password')) {
       return {
         code: 'weak-password',
-        message: 'Password is too weak. Please use at least 6 characters including letters and numbers.'
+        message: 'Password is too weak. Please use at least 6 characters.'
       };
     }
 
-    if (rawMessage.includes('invalid-email')) {
+    if (rawMessage.includes('invalid-email') || rawMessage.includes('auth/invalid-email')) {
       return {
         code: 'invalid-email',
         message: 'Please enter a valid email address.'
       };
     }
 
-    if (rawMessage.includes('popup-closed-by-user')) {
+    if (rawMessage.includes('popup-closed-by-user') || rawMessage.includes('auth/popup-closed-by-user')) {
       return {
         code: 'popup-closed',
         message: 'Google Sign-In popup was closed before completion. Please try again.'
       };
     }
 
-    if (rawMessage.includes('network-request-failed')) {
+    if (rawMessage.includes('popup-blocked') || rawMessage.includes('auth/popup-blocked')) {
+      return {
+        code: 'popup-blocked',
+        message: 'Pop-up was blocked by browser. Please allow popups for Google Sign-In.'
+      };
+    }
+
+    if (rawMessage.includes('network-request-failed') || rawMessage.includes('auth/network-request-failed')) {
       return {
         code: 'network-error',
         message: 'Network error. Please check your internet connection and try again.'
       };
     }
 
+    if (rawMessage.includes('too-many-requests') || rawMessage.includes('auth/too-many-requests')) {
+      return {
+        code: 'too-many-requests',
+        message: 'Too many attempts. Please wait a few moments or reset your password.'
+      };
+    }
+
     return {
       code: 'auth-error',
-      message: rawMessage
+      message: rawMessage.replace(/^Firebase:\s*/, '')
     };
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<User | null> => {
     setAuthError(null);
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -136,6 +236,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
       setAuthModalOpen(false);
+      return result.user;
     } catch (err: unknown) {
       const formatted = formatFirebaseError(err);
       setAuthError(formatted);
@@ -144,7 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInWithEmail = async (email: string, pass: string) => {
+  const signInWithEmail = async (email: string, pass: string): Promise<User | null> => {
     setAuthError(null);
     try {
       const result = await signInWithEmailAndPassword(auth, email, pass);
@@ -157,6 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
       setAuthModalOpen(false);
+      return result.user;
     } catch (err: unknown) {
       const formatted = formatFirebaseError(err);
       setAuthError(formatted);
@@ -165,7 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUpWithEmail = async (email: string, pass: string, name: string) => {
+  const signUpWithEmail = async (email: string, pass: string, name: string): Promise<User | null> => {
     setAuthError(null);
     try {
       const result = await createUserWithEmailAndPassword(auth, email, pass);
@@ -181,6 +283,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
       setAuthModalOpen(false);
+      return result.user;
     } catch (err: unknown) {
       const formatted = formatFirebaseError(err);
       setAuthError(formatted);
@@ -189,24 +292,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (email: string) => {
+    setAuthError(null);
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (err: unknown) {
+      const formatted = formatFirebaseError(err);
+      setAuthError(formatted);
+      console.error("Password reset error:", err);
+      throw err;
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
       setAuthError(null);
+      showToast('Signed out successfully', 'info');
     } catch (err) {
       console.error("Logout error:", err);
       throw err;
     }
   };
 
-  const openAuthModal = (mode: 'signin' | 'signup' = 'signin') => {
+  const openAuthModal = (mode: 'signin' | 'signup' = 'signin', options?: AuthModalOptions) => {
     setAuthModalMode(mode);
+    setModalTitle(options?.title);
+    setModalSubtitle(options?.subtitle);
+    if (options?.pendingAction) {
+      handleSetPendingAction(options.pendingAction);
+    }
     setAuthError(null);
     setAuthModalOpen(true);
   };
 
   const closeAuthModal = () => {
     setAuthModalOpen(false);
+    setModalTitle(undefined);
+    setModalSubtitle(undefined);
     setAuthError(null);
   };
 
@@ -222,14 +345,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
+        resetPassword,
         logout,
         openAuthModal,
         closeAuthModal,
         authModalOpen,
         authModalMode,
         setAuthModalMode,
+        modalTitle,
+        modalSubtitle,
+        pendingAction,
+        setPendingAction: handleSetPendingAction,
+        clearPendingAction,
         authError,
-        clearAuthError
+        clearAuthError,
+        toast,
+        showToast,
+        dismissToast
       }}
     >
       {children}

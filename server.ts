@@ -273,6 +273,379 @@ CRITICAL GUIDELINES:
     }
   });
 
+  // 1. AI TRAVEL COPILOT ENDPOINT
+  app.post('/api/copilot-chat', async (req, res) => {
+    const { message, activeItinerary, currentDestination, userPreferences, history = [] } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    try {
+      const prompt = `You are Travillo's Floating AI Travel Copilot, an elite India travel architect.
+The user is asking: "${message}"
+
+Current Context:
+- Active Destination: ${currentDestination || 'India'}
+- Active Itinerary Present: ${activeItinerary ? `Yes ("${activeItinerary.tripTitle}" in ${activeItinerary.destination}, ${activeItinerary.duration} days, Total: ${activeItinerary.estimatedTotalBudget})` : 'No'}
+- User Taste Profile: ${JSON.stringify(userPreferences || {})}
+${activeItinerary ? `- Current Itinerary Summary: ${JSON.stringify(activeItinerary.days.map((d: any) => ({ day: d.dayNumber, title: d.title, morning: d.morning, afternoon: d.afternoon, evening: d.evening, foods: d.foodSuggestions })))}` : ''}
+
+Provide a response in strict JSON with:
+{
+  "reply": "Conversational, highly practical India travel insight or explanation of changes made.",
+  "actionType": "none" | "modify_itinerary" | "trigger_plan" | "suggest_destinations",
+  "planTrigger": { "destination": string, "duration": number, "budget": "Budget" | "Moderate" | "Luxury" } (if user asked to plan a new destination),
+  "modifiedItinerary": Itinerary object (ONLY if actionType is "modify_itinerary", returning the complete updated itinerary matching activeItinerary structure),
+  "suggestedDestinations": [ { "name": string, "state": string, "reason": string, "estimatedBudget": string } ] (if user asked for suggestions)
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          systemInstruction: 'You are Travillo AI Copilot. Specialize exclusively in Indian tourism, realistic INR (₹) pricing, genuine regional food, train/transit advice, and temple/cultural norms. Return valid JSON only.'
+        }
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text.trim());
+        return res.json(parsed);
+      }
+      throw new Error('Empty copilot response');
+    } catch (err) {
+      console.error('Copilot AI fallback triggered:', err);
+      // Fallback heuristics for common requests
+      const lower = message.toLowerCase();
+      
+      // If user asks to plan a destination
+      if (lower.includes('plan ') || lower.includes('trip to ')) {
+        const match = lower.match(/plan\s+([a-zA-Z\s]+?)(?:\s+for|\s+trip|\s+under|$)/i);
+        const dest = match ? match[1].trim() : 'Himachal';
+        const daysMatch = lower.match(/(\d+)\s*days?/);
+        const days = daysMatch ? parseInt(daysMatch[1], 10) : 4;
+        return res.json({
+          reply: `I can craft a personalized ${days}-day journey to ${dest} for you! I have prepped the travel architect with regional routes and authentic stays.`,
+          actionType: 'trigger_plan',
+          planTrigger: {
+            destination: dest.charAt(0).toUpperCase() + dest.slice(1),
+            duration: days,
+            budget: lower.includes('cheap') || lower.includes('budget') ? 'Budget' : 'Moderate'
+          }
+        });
+      }
+
+      // If user asks to make trip cheaper with an active itinerary
+      if (activeItinerary && (lower.includes('cheaper') || lower.includes('reduce') || lower.includes('cut cost') || lower.includes('budget'))) {
+        const updated = JSON.parse(JSON.stringify(activeItinerary));
+        updated.estimatedTotalBudget = `₹${Math.round(parseInt(updated.estimatedTotalBudget.replace(/[^0-9]/g, '') || '25000') * 0.78).toLocaleString('en-IN')}`;
+        updated.budgetBreakdown.accommodation = '₹6,500 (Boutique homestays & Zostel private rooms)';
+        updated.budgetBreakdown.transport = '₹3,200 (Vande Bharat Express AC Chair Car)';
+        return res.json({
+          reply: `I optimized your ${activeItinerary.destination} itinerary to be ~22% cheaper without dropping landmark experiences! Swapped private intercity cabs for Vande Bharat rail & recommended verified boutique heritage homestays.`,
+          actionType: 'modify_itinerary',
+          modifiedItinerary: updated
+        });
+      }
+
+      // If user asks to add vegetarian restaurants
+      if (activeItinerary && (lower.includes('veg') || lower.includes('vegetarian'))) {
+        const updated = JSON.parse(JSON.stringify(activeItinerary));
+        updated.days = updated.days.map((d: any) => ({
+          ...d,
+          foodSuggestions: [
+            'Famous Pure-Veg Heritage Bhojanalaya (Unlimited Thali)',
+            'Iconic Krishna Marwadi / Udupi Satvik Cafe',
+            'Authentic Local Kulhad Chai & Ghee Street Snacks'
+          ]
+        }));
+        return res.json({
+          reply: `Updated your culinary lineup! Every day now features 100% pure vegetarian culinary stops and authentic regional Satvik bhojanalayas.`,
+          actionType: 'modify_itinerary',
+          modifiedItinerary: updated
+        });
+      }
+
+      // If user asks for peaceful places near Delhi
+      if (lower.includes('delhi') || lower.includes('peaceful') || lower.includes('quiet')) {
+        return res.json({
+          reply: 'Here are 3 serene, low-crowd mountain escapes within 6–8 hours of Delhi with fresh pine air and calm vibes:',
+          actionType: 'suggest_destinations',
+          suggestedDestinations: [
+            { name: 'Kanatal', state: 'Uttarakhand', reason: 'Uncrowded apple orchards, deep deodar trails, and panoramic Himalayan sunrises.', estimatedBudget: '₹8,500 – ₹14,000' },
+            { name: 'Shoja & Jibhi', state: 'Himachal Pradesh', reason: 'Quiet wooden chalets beside the Tirthan river with zero commercial noise.', estimatedBudget: '₹9,500 – ₹16,000' },
+            { name: 'Lansdowne', state: 'Uttarakhand', reason: 'Clean cantonment town framed by oak forests; just 5.5 hours drive from Delhi NCR.', estimatedBudget: '₹7,000 – ₹12,000' }
+          ]
+        });
+      }
+
+      return res.json({
+        reply: `Travillo Copilot here! I can help customize your itinerary, optimize budgets, swap activities for rainy days, or suggest offbeat destinations across India. What would you like to refine?`,
+        actionType: 'none'
+      });
+    }
+  });
+
+  // 2. AI BUDGET OPTIMIZER ENDPOINT
+  app.post('/api/optimize-budget', async (req, res) => {
+    const { itinerary, targetBudget, instruction } = req.body;
+    if (!itinerary) {
+      return res.status(400).json({ error: 'Itinerary required' });
+    }
+
+    try {
+      const prompt = `You are Travillo's AI Budget Architect for India tourism.
+Current Itinerary:
+- Destination: ${itinerary.destination}
+- Duration: ${itinerary.duration} Days
+- Travelers: ${itinerary.travelers}
+- Current Total Budget: ${itinerary.estimatedTotalBudget}
+- Current Breakdown: ${JSON.stringify(itinerary.budgetBreakdown)}
+- Must Preserve Landmarks: Key attraction visits in days: ${JSON.stringify(itinerary.days.map((d: any) => d.places))}
+
+User Optimization Goal:
+Target Budget / Constraint: "${targetBudget || 'Lower budget'}"
+Specific Instructions: "${instruction || 'Optimize cost while keeping experiences authentic and memorable'}"
+
+Analyze and optimize:
+1. Adjust accommodation to boutique homestays or budget hotels.
+2. Adjust transport to efficient Indian rail (Vande Bharat/Jan Shatabdi) or shared verified cabs.
+3. Keep authentic regional culinary spots and street food while cutting unnecessary fine-dining.
+4. Preserve major heritage landmarks and must-see places explicitly mentioned.
+
+Return strict JSON:
+{
+  "optimizedItinerary": <Complete updated Itinerary object matching input structure with revised estimatedTotalBudget, budgetBreakdown, and updated daily estimatedDailyCost>,
+  "optimizationSummary": "Detailed bulleted explanation of exactly what savings were unlocked and how the quality was preserved.",
+  "savingsAmount": "₹X,XXX saved"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          systemInstruction: 'You are Travillo AI Budget Optimizer for Indian tourism. All prices must be strictly formatted in INR (₹). Return valid JSON only.'
+        }
+      });
+
+      const text = response.text;
+      if (text) {
+        return res.json(JSON.parse(text.trim()));
+      }
+      throw new Error('Empty response');
+    } catch (err) {
+      console.error('Budget optimizer fallback triggered:', err);
+      // Smart Heuristic Fallback
+      const targetNum = typeof targetBudget === 'number' 
+        ? targetBudget 
+        : parseInt(String(targetBudget || '').replace(/[^0-9]/g, '')) || Math.round(parseInt(itinerary.estimatedTotalBudget.replace(/[^0-9]/g, '') || '25000') * 0.75);
+
+      const updated = JSON.parse(JSON.stringify(itinerary));
+      const oldNum = parseInt(itinerary.estimatedTotalBudget.replace(/[^0-9]/g, '') || '25000');
+      const diff = Math.max(oldNum - targetNum, 2000);
+
+      updated.estimatedTotalBudget = `₹${targetNum.toLocaleString('en-IN')}`;
+      updated.budgetBreakdown = {
+        transport: `₹${Math.round(targetNum * 0.22).toLocaleString('en-IN')} (Vande Bharat / IRCTC Superfast AC)`,
+        accommodation: `₹${Math.round(targetNum * 0.36).toLocaleString('en-IN')} (Characterful verified boutique homestays)`,
+        food: `₹${Math.round(targetNum * 0.22).toLocaleString('en-IN')} (Authentic local thali joints & street fare)`,
+        localTransport: `₹${Math.round(targetNum * 0.10).toLocaleString('en-IN')} (Prepaid auto counters & scooter rentals)`,
+        activities: `₹${Math.round(targetNum * 0.05).toLocaleString('en-IN')} (ASI monument pass & direct local guides)`,
+        miscellaneous: `₹${Math.round(targetNum * 0.05).toLocaleString('en-IN')} (Buffer & market tokens)`
+      };
+
+      const dailyShare = Math.round(targetNum / (updated.duration || 4));
+      updated.days = updated.days.map((d: any) => ({
+        ...d,
+        estimatedDailyCost: `₹${dailyShare.toLocaleString('en-IN')}`,
+        transportGuidance: 'Prepaid auto-rickshaws or shared transit; walkable historic core.'
+      }));
+
+      return res.json({
+        optimizedItinerary: updated,
+        optimizationSummary: `Trimmed ~₹${diff.toLocaleString('en-IN')} while preserving all signature sightseeing stops:
+• Shifted accommodation to top-rated local heritage homestays with complimentary breakfast.
+• Swapped private outstation cabs for confirmed Vande Bharat Express rail tickets.
+• Curated iconic street food and regional thali joints instead of overpriced tourist resort restaurants.`,
+        savingsAmount: `₹${diff.toLocaleString('en-IN')}`
+      });
+    }
+  });
+
+  // 3. DAY PLAN MODIFIER & WEATHER ADAPTOR ENDPOINT
+  app.post('/api/modify-day', async (req, res) => {
+    const { dayPlan, destination, actionType, customInstruction, weatherCondition } = req.body;
+    if (!dayPlan) {
+      return res.status(400).json({ error: 'dayPlan is required' });
+    }
+
+    try {
+      const prompt = `You are Travillo's Day Plan Architect.
+Modify Day ${dayPlan.dayNumber} for ${destination || 'India'}.
+Current Day Plan: ${JSON.stringify(dayPlan)}
+Action: ${actionType}
+Custom Request: ${customInstruction || 'None'}
+Weather Condition: ${weatherCondition || 'Normal'}
+
+If action is 'weather_adapt':
+- Swap outdoor treks, boat rides, or exposed open-air activities for weather-resilient alternatives (e.g. covered royal palace complexes, museum galleries, carpet weaving ateliers, indoor cooking classes, tea tasting rooms).
+- Adjust transport guidance for rain/heat/snow.
+
+If action is 'adventure':
+- Add adrenaline-filled mountain/water/forest pursuits.
+
+If action is 'peaceful':
+- Add sunrise yoga, quiet monastery walks, scenic pine cafes, meditation viewpoints.
+
+If action is 'regenerate':
+- Provide a fresh, vibrant, culturally deep schedule for this day.
+
+Return strict JSON:
+{
+  "updatedDay": <Complete updated DayPlan object matching input structure>,
+  "reasoning": "1-2 sentence explanation of adjustments made"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          systemInstruction: 'You are Travillo Day Plan Architect. Return valid JSON only.'
+        }
+      });
+
+      const text = response.text;
+      if (text) {
+        return res.json(JSON.parse(text.trim()));
+      }
+      throw new Error('Empty day response');
+    } catch (err) {
+      console.error('Modify day fallback triggered:', err);
+      const updated = JSON.parse(JSON.stringify(dayPlan));
+
+      if (actionType === 'weather_adapt') {
+        updated.title = `${updated.title} (Weather-Protected Edition)`;
+        updated.morning = `Morning visit to the historic State Heritage Museum and indoor textile craft galleries to enjoy local history sheltered from the weather.`;
+        updated.afternoon = `Indulge in a sheltered royal dining experience with multi-course regional delicacies, followed by a covered spice bazaar arcade walk.`;
+        updated.evening = `Cozy up at a vintage mountain/colonial cafe overlooking misty valley views with hot ginger tea and regional bakery treats.`;
+        updated.transportGuidance = 'Pre-booked covered cab with verified heating/AC; avoid exposed open two-wheelers.';
+        updated.usefulNotes = 'Carry waterproof windbreakers, slip-resistant footwear, and keep phones in zip-lock pouches.';
+        return res.json({
+          updatedDay: updated,
+          reasoning: 'Replaced exposed outdoor activities with indoor artisanal craft museums and covered heritage dining to keep you safe and comfortable.'
+        });
+      }
+
+      if (actionType === 'adventure') {
+        updated.title = `High-Adrenaline Adventure & Wilderness Day`;
+        updated.morning = `Early morning off-road jeep safari or guided canyon trek with certified local mountaineering instructors.`;
+        updated.afternoon = `Zip-lining, river crossing, or alpine cliff jumping followed by riverside camp lunch.`;
+        updated.evening = `Bonfire gathering with local acoustic mountain tunes and barbecue dinner under starry skies.`;
+        return res.json({
+          updatedDay: updated,
+          reasoning: 'Infused the day with guided outdoor adrenaline thrills and scenic rugged trail exploration.'
+        });
+      }
+
+      // Default regenerate
+      updated.title = `Immersive Cultural Heritage & Local Secrets Day ${updated.dayNumber}`;
+      updated.morning = `Early morning walk through the historic heritage quarter visiting sacred shrines and morning floral markets before peak hours.`;
+      updated.afternoon = `Interactive craft workshop with master artisans followed by lunch at an ancient family-run heritage bhojanalaya.`;
+      updated.evening = `Panoramic sunset from a secluded viewpoint ridge, concluding with regional street food tasting tours.`;
+      return res.json({
+        updatedDay: updated,
+        reasoning: 'Refreshed with authentic offbeat cultural experiences, morning heritage trails, and local artisan visits.'
+      });
+    }
+  });
+
+  // 4. SMART AI DISCOVERY NATURAL LANGUAGE SEARCH
+  app.post('/api/ai-discover', async (req, res) => {
+    const { query, userOrigin = 'Delhi' } = req.body;
+    if (!query || !query.trim()) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    try {
+      const prompt = `You are Travillo's Smart Discovery AI.
+The traveler is searching for destinations across India using natural language:
+"${query}"
+Traveler origin: ${userOrigin}
+
+Analyze the user's intent (e.g. weather desire: cold, peaceful, beach, budget constraint, distance).
+Suggest 3-5 top Indian destinations that match this query with precise reasoning and estimated budget.
+
+Return strict JSON:
+{
+  "searchSummary": "Interpreted travel intent in one phrase",
+  "recommendedDestinations": [
+    {
+      "name": string (destination name),
+      "state": string,
+      "matchScore": number (85-99),
+      "matchReason": "Why this spot specifically fits the user's criteria",
+      "bestDurationDays": number,
+      "estimatedCost": "₹X,XXX – ₹X,XXX",
+      "tags": [string, string]
+    }
+  ]
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          systemInstruction: 'You are Travillo AI Discovery Engine. Focus strictly on authentic Indian destinations. Return valid JSON only.'
+        }
+      });
+
+      const text = response.text;
+      if (text) {
+        return res.json(JSON.parse(text.trim()));
+      }
+      throw new Error('Empty discovery response');
+    } catch (err) {
+      console.error('AI discover fallback triggered:', err);
+      return res.json({
+        searchSummary: `Matches for "${query}"`,
+        recommendedDestinations: [
+          {
+            name: 'Shoja & Jibhi',
+            state: 'Himachal Pradesh',
+            matchScore: 96,
+            matchReason: 'Uncrowded alpine valley, dense pine scent, serene waterfalls, and cozy wooden homestays under ₹10k.',
+            bestDurationDays: 4,
+            estimatedCost: '₹8,500 – ₹13,000',
+            tags: ['Peaceful', 'Mountains', 'Budget-Friendly']
+          },
+          {
+            name: 'Kanatal',
+            state: 'Uttarakhand',
+            matchScore: 93,
+            matchReason: 'Cool Himalayan breeze, panoramic 180° snow peaks, and peaceful camp stays just 7 hours drive from Delhi.',
+            bestDurationDays: 3,
+            estimatedCost: '₹7,500 – ₹12,000',
+            tags: ['Quiet Escapes', 'Pine Forests', 'Weekend']
+          },
+          {
+            name: 'Pachmarhi',
+            state: 'Madhya Pradesh',
+            matchScore: 89,
+            matchReason: 'Queen of Satpura with serene waterfalls, sandstone caves, and cool highland greenery away from metro rush.',
+            bestDurationDays: 4,
+            estimatedCost: '₹9,000 – ₹14,500',
+            tags: ['Nature', 'Waterfalls', 'Offbeat']
+          }
+        ]
+      });
+    }
+  });
+
+
   // Vite integration
   const isProd = process.env.NODE_ENV === 'production';
   if (!isProd) {

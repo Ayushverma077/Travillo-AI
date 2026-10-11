@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { Sparkles, MapPin, Navigation, Calendar, Users, ArrowRight } from 'lucide-react';
+import { 
+  Sparkles, 
+  ArrowRight, 
+  MapPin, 
+  Search, 
+  Flame, 
+  Compass,
+  Star,
+  Zap,
+  TrendingUp,
+  ShieldCheck
+} from 'lucide-react';
 import { DESTINATIONS } from '../../data/destinations';
 
 interface HeroProps {
@@ -13,225 +24,267 @@ export const Hero: React.FC<HeroProps> = ({
   onExplore,
   onSelectDestination
 }) => {
-  const [destinationInput, setDestinationInput] = useState('');
-  const [startingCity, setStartingCity] = useState('');
-  const [selectedSeason, setSelectedSeason] = useState('Upcoming Season');
-  const [travelersCount, setTravelersCount] = useState('2');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
 
-  const handleDestinationChange = (value: string) => {
-    setDestinationInput(value);
-    if (value.trim().length > 1) {
-      const filtered = DESTINATIONS
-        .filter(d => 
-          d.name.toLowerCase().includes(value.toLowerCase()) ||
-          d.state.toLowerCase().includes(value.toLowerCase()) ||
-          d.region.toLowerCase().includes(value.toLowerCase())
-        )
-        .map(d => d.name)
-        .slice(0, 5);
-      setSuggestions(filtered);
-      setShowSuggestions(true);
+  const quickChips = [
+    { label: 'Mountains', icon: '🏔', prompt: '5 days peaceful mountain escape in Himachal under ₹20,000', dest: 'Manali' },
+    { label: 'Beaches', icon: '🌊', prompt: '4 days relaxed beach trip in South Goa under ₹25,000', dest: 'Goa' },
+    { label: 'Hidden Gems', icon: '✨', prompt: '6 days offbeat exploration in Meghalaya', dest: 'Meghalaya' },
+    { label: 'Adventure', icon: '🎒', prompt: '7 days high-altitude road trip in Spiti Valley', dest: 'Spiti Valley' },
+    { label: 'Romantic', icon: '💕', prompt: '3 days luxury heritage romantic getaway in Udaipur', dest: 'Udaipur' },
+    { label: 'Budget', icon: '💰', prompt: 'Weekend backpacker trip to Rishikesh under ₹8,000', dest: 'Rishikesh' },
+  ];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiPrompt.trim()) {
+      onPlanTrip('Himachal', 2);
+      return;
+    }
+
+    // Check if user entered a specific destination name
+    const match = DESTINATIONS.find(d => 
+      aiPrompt.toLowerCase().includes(d.name.toLowerCase()) ||
+      aiPrompt.toLowerCase().includes(d.state.toLowerCase())
+    );
+
+    if (match) {
+      onPlanTrip(match.name, 2);
     } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
+      onPlanTrip(aiPrompt.trim(), 2);
     }
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const count = parseInt(travelersCount, 10) || 2;
-    onPlanTrip(destinationInput.trim(), count);
+  const handleChipClick = (chip: typeof quickChips[0]) => {
+    setAiPrompt(chip.prompt);
+    onPlanTrip(chip.dest, 2);
   };
 
-  const popularDestinations = [
-    'Rishikesh',
-    'Udaipur',
-    'Munnar',
-    'Spiti Valley',
-    'Goa',
-    'Varanasi',
-    'Meghalaya'
-  ];
-
   return (
-    <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-[#0C1210] text-white">
-      {/* Background Cinematic Photography with Rich Layered Scrim */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2400&q=88"
-          alt="Majestic Indian mountain sanctuary"
-          className="w-full h-full object-cover object-center scale-[1.02] filter brightness-[0.78]"
-        />
-        {/* Editorial gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0C1210]/60 via-transparent to-[#0C1210]/90" />
-        <div className="absolute inset-0 bg-radial from-transparent via-[#0C1210]/20 to-[#0C1210]/70" />
-      </div>
+    <section className="relative pt-8 pb-20 md:py-16 overflow-hidden aurora-bg-light dark:aurora-bg-dark">
+      {/* Background Soft Glow Elements */}
+      <div className="absolute top-10 left-1/4 w-96 h-96 bg-blue-500/10 dark:bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-20 right-1/4 w-96 h-96 bg-pink-500/10 dark:bg-pink-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[600px] h-64 bg-violet-500/10 dark:bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Hero Content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-28 text-center flex flex-col items-center">
-        {/* Editorial Sub-kicker */}
-        <div className="mb-4 text-xs font-semibold tracking-[0.25em] uppercase text-[#E0E7E3]/90">
-          Curated India Journeys · Powered by Gemini
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          
+          {/* ================= LEFT COLUMN ================= */}
+          <div className="lg:col-span-6 space-y-7 text-left">
+            {/* Pill kicker */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <span className="flex h-2 w-2 rounded-full bg-gradient-to-r from-blue-500 to-pink-500 animate-pulse" />
+              <span className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300">
+                Next-Gen AI Travel Engine for India
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                v2.6
+              </span>
+            </div>
 
-        {/* Cinematic Headline */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif font-normal tracking-tight text-white max-w-3xl leading-[1.08] text-balance">
-          Discover India. <br />
-          <span className="italic font-light text-[#E5E9E4]">Plan intelligently.</span>
-        </h1>
+            {/* Headline */}
+            <div className="space-y-2">
+              <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans leading-[1.08]">
+                Your world.<br />
+                Your vibe.<br />
+                <span className="ai-gradient-text">Planned by AI ✦</span>
+              </h1>
+              <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 font-normal leading-relaxed pt-2 max-w-xl">
+                Tell Travillo your budget, mood and dates. AI builds the journey — complete with day-by-day maps, weather adaptation, and itemized budget optimization.
+              </p>
+            </div>
 
-        {/* Supporting Copy */}
-        <p className="mt-5 text-base sm:text-lg text-[#D1D5DB] max-w-2xl font-light leading-relaxed text-balance">
-          From hidden mountain villages to coastal escapes, Travillo turns your travel ideas into personalized journeys.
-        </p>
+            {/* Large AI Command Bar with subtle animated glow */}
+            <div className="relative group">
+              <div 
+                className={`p-[1.5px] rounded-2xl transition-all duration-300 ${
+                  isFocused 
+                    ? 'bg-gradient-to-r from-blue-500 via-violet-500 to-pink-500 shadow-xl shadow-violet-500/20' 
+                    : 'bg-gradient-to-r from-blue-500/40 via-violet-500/40 to-pink-500/40 hover:from-blue-500 hover:to-pink-500 shadow-md'
+                }`}
+              >
+                <form 
+                  onSubmit={handleSubmit}
+                  className="flex flex-col sm:flex-row items-stretch sm:items-center bg-white dark:bg-[#0F172A] rounded-[15px] p-2 gap-2"
+                >
+                  <div className="flex items-center gap-3 flex-1 pl-3 pr-2 py-1.5">
+                    <Sparkles className="w-5 h-5 text-violet-500 shrink-0 animate-pulse" />
+                    <input
+                      type="text"
+                      value={aiPrompt}
+                      onFocus={() => setIsFocused(true)}
+                      onBlur={() => setIsFocused(false)}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder="✨ Plan a 5-day adventure in Himachal under ₹20,000"
+                      className="w-full bg-transparent border-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-sm sm:text-base focus:outline-hidden font-medium"
+                    />
+                  </div>
 
-        {/* Primary CTAs */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <button
-            onClick={() => onPlanTrip()}
-            className="px-7 py-3.5 bg-[#12372A] hover:bg-[#184938] text-white font-medium text-sm rounded-xl border border-white/10 shadow-lg shadow-black/30 transition-all cursor-pointer hover:scale-[1.01]"
-          >
-            Plan My India Trip
-          </button>
-
-          <button
-            onClick={onExplore}
-            className="px-7 py-3.5 bg-white/10 hover:bg-white/15 text-white font-medium text-sm rounded-xl backdrop-blur-md border border-white/20 transition-all cursor-pointer hover:scale-[1.01]"
-          >
-            Explore India
-          </button>
-        </div>
-
-        {/* Sophisticated Floating Search & Planning Surface */}
-        <div className="w-full max-w-4xl mt-12 bg-white rounded-2xl p-2.5 sm:p-3 shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-black/[0.08] text-[#171717]">
-          <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2 items-center">
-            {/* Where to */}
-            <div className="relative text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F5F0] transition-colors lg:col-span-4">
-              <label className="block text-[11px] font-medium text-[#737373] tracking-wide">
-                Where do you want to go?
-              </label>
-              <div className="flex items-center gap-2 mt-0.5">
-                <MapPin className="w-4 h-4 text-[#12372A] shrink-0" />
-                <input
-                  type="text"
-                  value={destinationInput}
-                  onChange={(e) => handleDestinationChange(e.target.value)}
-                  onFocus={() => { if (suggestions.length) setShowSuggestions(true); }}
-                  onBlur={() => { setTimeout(() => setShowSuggestions(false), 250); }}
-                  placeholder="e.g. Rishikesh, Munnar, Udaipur..."
-                  className="w-full text-sm font-medium text-[#171717] placeholder:text-[#9CA3AF] bg-transparent focus:outline-none"
-                />
+                  <button
+                    type="submit"
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:from-blue-700 hover:to-pink-600 text-white font-semibold text-sm shadow-md hover:shadow-lg hover:shadow-violet-500/25 transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0 active:scale-95"
+                  >
+                    <span>Build Journey</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
               </div>
+            </div>
 
-              {/* Suggestions Dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-black/[0.08] py-1.5 z-30">
-                  {suggestions.map((dest) => (
-                    <button
-                      key={dest}
-                      type="button"
-                      onClick={() => {
-                        setDestinationInput(dest);
-                        setShowSuggestions(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-[#374151] hover:bg-[#F7F5F0] hover:text-[#12372A] flex items-center gap-2 transition-colors cursor-pointer"
-                    >
-                      <MapPin className="w-3.5 h-3.5 text-[#12372A]" />
-                      <span>{dest}</span>
-                    </button>
-                  ))}
+            {/* Quick Chips */}
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Quick Prompts
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {quickChips.map((chip) => (
+                  <button
+                    key={chip.label}
+                    onClick={() => handleChipClick(chip)}
+                    className="group px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-violet-400 dark:hover:border-violet-500 text-slate-700 dark:text-slate-200 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>{chip.icon}</span>
+                    <span className="group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                      {chip.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Micro stats / Trust indicators */}
+            <div className="pt-2 flex items-center gap-6 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                <span className="font-bold text-slate-800 dark:text-slate-200">4.9/5</span>
+                <span>Traveler Rating</span>
+              </div>
+              <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+              <div className="flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-violet-500" />
+                <span className="font-bold text-slate-800 dark:text-slate-200">&lt; 3s</span>
+                <span>Gemini Generation</span>
+              </div>
+              <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>Verified India Routes</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ================= RIGHT COLUMN: Bento Travel Composition ================= */}
+          <div className="lg:col-span-6 relative">
+            <div className="relative grid grid-cols-12 gap-3.5 sm:gap-4 p-2">
+              
+              {/* Card 1: Snowy Mountains (Top Left) */}
+              <div 
+                onClick={() => onSelectDestination('Spiti Valley')}
+                className="col-span-7 relative h-56 sm:h-64 rounded-3xl overflow-hidden group cursor-pointer border border-white/60 dark:border-slate-700/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=800&q=80"
+                  alt="Snowy Himalayas"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                <div className="absolute bottom-3.5 left-4 right-4 text-white">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-cyan-300 flex items-center gap-1">
+                    <span>🏔 Himalayas</span>
+                    <span>·</span>
+                    <span>Winter Vibe</span>
+                  </div>
+                  <h3 className="text-base font-bold text-white leading-tight">Spiti & Gulmarg Peaks</h3>
+                  <p className="text-xs text-slate-300 font-medium">₹18,500 · 6 Days</p>
                 </div>
-              )}
-            </div>
+                {/* Floating AI Match Tag */}
+                <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-[10px] font-bold text-violet-600 dark:text-violet-400 border border-violet-500/30 shadow-xs flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  <span>98% Match</span>
+                </div>
+              </div>
 
-            {/* Starting from */}
-            <div className="text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F5F0] transition-colors lg:col-span-2">
-              <label className="block text-[11px] font-medium text-[#737373] tracking-wide">
-                Starting from
-              </label>
-              <div className="flex items-center gap-2 mt-0.5">
-                <Navigation className="w-3.5 h-3.5 text-[#737373] shrink-0" />
-                <input
-                  type="text"
-                  value={startingCity}
-                  onChange={(e) => setStartingCity(e.target.value)}
-                  placeholder="Delhi / Mumbai"
-                  className="w-full text-sm font-medium text-[#171717] placeholder:text-[#9CA3AF] bg-transparent focus:outline-none"
+              {/* Card 2: Tropical Coast (Top Right) */}
+              <div 
+                onClick={() => onSelectDestination('Goa')}
+                className="col-span-5 relative h-56 sm:h-64 rounded-3xl overflow-hidden group cursor-pointer border border-white/60 dark:border-slate-700/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80"
+                  alt="Tropical Coast"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                <div className="absolute bottom-3.5 left-3.5 right-3.5 text-white">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-pink-300">
+                    🌊 Coastal Serenity
+                  </div>
+                  <h3 className="text-sm font-bold text-white leading-tight">South Goa Palms</h3>
+                  <p className="text-[11px] text-slate-300">₹14,000 · 4 Days</p>
+                </div>
               </div>
-            </div>
 
-            {/* When / Season */}
-            <div className="text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F5F0] transition-colors lg:col-span-2">
-              <label className="block text-[11px] font-medium text-[#737373] tracking-wide">
-                When?
-              </label>
-              <div className="flex items-center gap-2 mt-0.5">
-                <Calendar className="w-3.5 h-3.5 text-[#737373] shrink-0" />
-                <select
-                  value={selectedSeason}
-                  onChange={(e) => setSelectedSeason(e.target.value)}
-                  className="w-full text-xs font-medium text-[#171717] bg-transparent focus:outline-none cursor-pointer"
-                >
-                  <option value="Upcoming Season">Upcoming Season</option>
-                  <option value="Autumn (Oct – Nov)">Autumn (Oct – Nov)</option>
-                  <option value="Winter (Dec – Feb)">Winter (Dec – Feb)</option>
-                  <option value="Spring (Mar – May)">Spring (Mar – May)</option>
-                  <option value="Monsoon (Jul – Sep)">Monsoon (Jul – Sep)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Travelers */}
-            <div className="text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F5F0] transition-colors lg:col-span-2">
-              <label className="block text-[11px] font-medium text-[#737373] tracking-wide">
-                Travelers
-              </label>
-              <div className="flex items-center gap-2 mt-0.5">
-                <Users className="w-3.5 h-3.5 text-[#737373] shrink-0" />
-                <select
-                  value={travelersCount}
-                  onChange={(e) => setTravelersCount(e.target.value)}
-                  className="w-full text-xs font-medium text-[#171717] bg-transparent focus:outline-none cursor-pointer"
-                >
-                  <option value="1">1 Traveler (Solo)</option>
-                  <option value="2">2 Travelers (Couple)</option>
-                  <option value="3">3 Travelers</option>
-                  <option value="4">4 Travelers (Family/Group)</option>
-                  <option value="6">6+ Travelers</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Action CTA */}
-            <div className="p-1 lg:col-span-2">
-              <button
-                type="submit"
-                className="w-full py-3 px-4 bg-[#12372A] hover:bg-[#184938] text-white text-xs font-semibold tracking-wider rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              {/* Card 3: Colorful Heritage Palace (Bottom Left) */}
+              <div 
+                onClick={() => onSelectDestination('Udaipur')}
+                className="col-span-5 relative h-48 sm:h-52 rounded-3xl overflow-hidden group cursor-pointer border border-white/60 dark:border-slate-700/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
-                <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Plan with AI</span>
-              </button>
-            </div>
-          </form>
-        </div>
+                <img
+                  src="https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80"
+                  alt="Udaipur Lake Palace"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 text-white">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-amber-300">
+                    🏰 Royal Heritage
+                  </div>
+                  <h3 className="text-sm font-bold text-white leading-tight">Udaipur Palaces</h3>
+                  <p className="text-[11px] text-slate-300">₹22,000 · 3 Days</p>
+                </div>
+              </div>
 
-        {/* Featured Destinations Row */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-xs text-[#9CA3AF]">
-          <span className="font-normal text-[#D1D5DB]">Trending places:</span>
-          {popularDestinations.map((dest, i) => (
-            <React.Fragment key={dest}>
-              <button
-                onClick={() => onSelectDestination(dest)}
-                className="text-white hover:text-emerald-300 transition-colors cursor-pointer font-medium"
+              {/* Card 4: Waterfalls / Lush Nature & Luxury Retreat (Bottom Right) */}
+              <div 
+                onClick={() => onSelectDestination('Meghalaya')}
+                className="col-span-7 relative h-48 sm:h-52 rounded-3xl overflow-hidden group cursor-pointer border border-white/60 dark:border-slate-700/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
-                {dest}
-              </button>
-              {i < popularDestinations.length - 1 && <span className="text-white/30">·</span>}
-            </React.Fragment>
-          ))}
+                <img
+                  src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80"
+                  alt="Meghalaya Waterfalls"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                <div className="absolute bottom-3 left-4 right-4 text-white">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 flex items-center gap-1">
+                    <span>🌿 Nature Wonders</span>
+                    <span>·</span>
+                    <span>Living Root Bridges</span>
+                  </div>
+                  <h3 className="text-base font-bold text-white leading-tight">Meghalaya Cascades</h3>
+                  <p className="text-xs text-slate-300 font-medium">₹19,000 · 5 Days</p>
+                </div>
+              </div>
+
+              {/* Floating Dynamic AI Badge in Center */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-2 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-violet-500/30 shadow-xl shadow-violet-500/20 flex items-center gap-2.5 z-20 pointer-events-none animate-ai-pulse">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-blue-600 via-violet-600 to-pink-500 flex items-center justify-center text-white">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <span className="block text-[11px] font-bold text-slate-900 dark:text-white leading-tight">
+                    ✦ Live AI Route Optimization
+                  </span>
+                  <span className="block text-[9px] text-slate-500 dark:text-slate-400">
+                    Weather-aware · Budget calibrated
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>

@@ -180,3 +180,48 @@ export interface UserProfileData {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface UserTravelPreferences {
+  homeCity: string;
+  preferredStyles: IndiaTravelStyle[];
+  budgetLevel: BudgetTier;
+  dietPreference: 'Vegetarian' | 'Non-Vegetarian' | 'Jain' | 'Vegan' | 'All';
+  travelPace: 'Relaxed' | 'Balanced' | 'Fast-Paced';
+  travelerGroup: TravelerType;
+  monsoonAware: boolean;
+}
+
+export interface CopilotMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+  actionPayload?: {
+    type: 'modify_itinerary' | 'trigger_plan' | 'suggest_destinations' | 'optimized_budget';
+    title?: string;
+    description?: string;
+    itinerary?: Itinerary;
+    destinationName?: string;
+    duration?: number;
+    budget?: BudgetTier;
+    suggestedDestinations?: Array<{
+      name: string;
+      state: string;
+      reason: string;
+      estimatedBudget: string;
+    }>;
+  };
+}
+
+export interface DayActivityItem {
+  id: string;
+  timeSlot: 'Morning' | 'Afternoon' | 'Evening';
+  title: string;
+  description: string;
+  locationName: string;
+  coordinates?: { lat: number; lng: number };
+  costEstimate?: string;
+  category: 'Heritage' | 'Nature' | 'Food' | 'Adventure' | 'Spiritual' | 'Relaxation' | 'Transit';
+  weatherResistant?: boolean;
+}
+

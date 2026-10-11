@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles, TrendingUp } from 'lucide-react';
 import { Destination } from '../../types';
 import { DestinationCard } from '../destinations/DestinationCard';
 
@@ -31,32 +31,33 @@ export const TrendingDestinations: React.FC<TrendingDestinationsProps> = ({
   }).slice(0, 6);
 
   return (
-    <section className="py-24 bg-[#F7F5F0] border-t border-black/[0.05]">
+    <section className="py-20 bg-slate-50/50 dark:bg-[#090D16]/50 border-t border-slate-200/60 dark:border-slate-800/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#737373] mb-2">
-              Curated Highlights
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-violet-600 dark:text-violet-400 mb-2">
+              <span className="p-1 rounded-md bg-violet-500/10"><TrendingUp className="w-3.5 h-3.5" /></span>
+              <span className="uppercase tracking-widest">🔥 Trending Now</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-serif font-normal text-[#171717] tracking-tight">
-              Trending Destinations
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight font-sans">
+              Iconic Escapes Across India
             </h2>
-            <p className="text-sm text-[#525252] mt-1.5 max-w-xl font-light">
-              Iconic regions and tucked-away sanctuaries curated for upcoming travel seasons.
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1.5 max-w-xl font-normal">
+              Most requested itineraries, alpine sanctuaries, and sun-soaked coastlines trending this travel season.
             </p>
           </div>
 
           {/* Segmented Filter Control */}
-          <div className="flex flex-wrap items-center gap-1 bg-black/[0.04] p-1 rounded-xl border border-black/[0.04]">
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-200/60 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
             {filterTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setFilter(tab)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
                   filter === tab
-                    ? 'bg-white text-[#171717] shadow-xs font-semibold'
-                    : 'text-[#525252] hover:text-[#171717]'
+                    ? 'bg-white dark:bg-slate-900 text-violet-600 dark:text-violet-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {tab}
@@ -65,26 +66,26 @@ export const TrendingDestinations: React.FC<TrendingDestinationsProps> = ({
           </div>
         </div>
 
-        {/* Destination Cards Grid */}
+        {/* Grid of Destination Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
-          {filteredDestinations.map((dest) => (
+          {filteredDestinations.map((destination) => (
             <DestinationCard
-              key={dest.id}
-              destination={dest}
+              key={destination.id}
+              destination={destination}
               onSelect={onSelectDestination}
               onPlanTrip={onPlanTrip}
             />
           ))}
         </div>
 
-        {/* Bottom CTA */}
-        <div className="mt-14 text-center">
+        {/* View All Button */}
+        <div className="mt-12 text-center">
           <button
             onClick={onViewAll}
-            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl border border-black/[0.12] bg-white hover:bg-[#FAF8F5] text-[#171717] text-xs font-semibold tracking-wide transition-all shadow-2xs cursor-pointer group"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 hover:border-violet-500 dark:hover:border-violet-400 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:text-violet-600 dark:hover:text-violet-400 text-sm font-bold shadow-xs hover:shadow-md transition-all cursor-pointer active:scale-95"
           >
-            <span>Explore All {destinations.length} Indian Destinations</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-[#12372A]" />
+            <span>Explore All 35+ India Destinations</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
